@@ -15,7 +15,7 @@ This is a **read-and-verify** skill: it inspects, runs, and reports. It does not
 2. **Review in three passes** (below): requirements traceability, task verification, code quality.
 3. **Run the verification commands** — test suites, builds, linters — and record actual output. Never mark something verified based only on reading the code; if a criterion says "test passes", run the test.
 4. **Write the report** to `kanban-<feature>/REVIEW.md` using the template.
-5. **Summarize in chat**: verdict, top findings by severity, and the recommended next step.
+5. **Summarize in chat**: verdict, top findings by severity, and the recommended next step. If the review surfaced durable lessons (a gotcha the tasks hit, a contract worth pinning), note them as candidates for `close-cycle` to record into module memory when the cycle closes.
 
 ## Pass 1 — Requirements traceability (PRD ↔ tasks ↔ code)
 
@@ -32,6 +32,8 @@ For every task in `done/`:
 - Confirm file ownership was respected: `git log`/diff should show the task's commits touching only its declared `files` (board files aside).
 - Confirm the pinned interfaces were implemented exactly as specified in the task's "Interfaces you must conform to" section.
 For tasks in `backlog/` or `in-progress/`: list them as unfinished work with their blockers, so the report reflects true completion status.
+
+Also cross-check against **module memory**: for the units touched, load any `knowledge/` memory (from `close-cycle`) and flag changes that violated a recorded decision, broke a "stable" contract, or walked into a documented gotcha — those are findings, not nitpicks.
 
 ## Pass 3 — Code quality
 

@@ -17,7 +17,8 @@ Execute tasks from a kanban board produced by the `prd-to-kanban` skill. Tasks w
    - Never start a wave while the previous wave has tasks outside `done/`.
 3. **Start tasks.** For each selected task: `git mv` its file from `backlog/` to `in-progress/` and set `status: in-progress` in its frontmatter. Commit this board update before implementation starts so the board reflects reality.
 4. **Execute.**
-   - **With subagents:** spawn one subagent per task in the same turn, using the prompt template below. Each subagent receives ONLY its task file content — that file is self-contained by design.
+   - **Load module memory first.** For each task, for the files in its `files` field, check `knowledge/INDEX.md` (the `close-cycle` memory) and load any matching entry. `prd-to-kanban` should already have folded the relevant knowledge into the task file, but pass the memory to the agent too as a belt-and-suspenders — it must respect recorded decisions, gotchas, and contracts for the units it touches.
+   - **With subagents:** spawn one subagent per task in the same turn, using the prompt template below. Each subagent receives its self-contained task file plus any matching module memory.
    - **Without subagents:** implement the tasks yourself, strictly one at a time, following each task file exactly.
 5. **Verify each task** against its own `## Acceptance criteria` checklist. Run the commands/tests the criteria imply. A task is done only when every box can be honestly checked.
 6. **Close each task.** Check off its acceptance-criteria boxes in the file, set `status: done`, `git mv` it to `done/`, update the tables in `BOARD.md`, and commit with message `task(<id>): <title>`.
@@ -36,9 +37,17 @@ own that file.
 Assume all tasks from earlier waves are complete: the interfaces listed in
 "Interfaces you must conform to" exist and work as specified.
 
+Respect the MODULE MEMORY below (if any): its recorded decisions, gotchas,
+patterns, and contracts about the units you're touching are known truths —
+follow them, don't relitigate them.
+
 Implement the task below, then verify every item in "Acceptance criteria"
 by actually running the relevant commands or tests. Report: files changed,
 how each criterion was verified, and any problems.
+
+--- MODULE MEMORY (from knowledge/, or "none") ---
+<contents of the knowledge/ files matching this task's `files`, or "none">
+--- END MODULE MEMORY ---
 
 --- TASK FILE ---
 <full contents of the task .md file>
