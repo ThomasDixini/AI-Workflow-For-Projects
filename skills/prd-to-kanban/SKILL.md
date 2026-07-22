@@ -19,13 +19,14 @@ Every task must satisfy these rules. They are the core of this skill:
 
 ## Workflow
 
-1. **Locate the PRD.** If the user points to a file, read it. Otherwise look for `prd-*.md` in `docs/`, `tasks/`, or the repo root. If several exist, ask which one. If none exists, suggest running the `write-prd` skill first.
+1. **Locate the PRD.** If the user points to a file, read it. Otherwise look for `prd-*.md` in `docs/`, `tasks/`, or the repo root. If several exist, ask which one. If none exists, suggest running the `write-prd` skill first. **If the "PRD" is really a single trivial change** (one obvious edit, no new contracts, no parallelism), a one-task board is overkill — tell the user to use the `quick-task` fast path instead of building ceremony.
 2. **Extract the work.** Go through the PRD section by section — especially Functional Requirements, Non-Functional Requirements, UX Notes, Technical Considerations, and Milestones. Every requirement must map to at least one task; no requirement may be silently dropped.
 3. **Split into small tasks.** Each task should take one agent roughly ≤2 hours of focused work. Prefer more, smaller, independent tasks over fewer large ones — small tasks are what create parallelism.
 4. **Design the interfaces.** Before writing any task file, sketch the shared contracts (types, function signatures, routes, schemas) and the file-ownership map. Adjust task boundaries until no wave has overlapping files.
-5. **Assign waves** based on the dependency graph.
-6. **Create the board structure** and write one file per task using the template.
-7. **Write `BOARD.md`** with the wave-based execution plan, and report a summary to the user: number of tasks, number of waves, maximum parallelism per wave, and any ambiguous requirements.
+5. **Consult module memory.** For each file a task will own, check `knowledge/INDEX.md` (the `close-cycle` memory) for a matching entry. Load any recorded decisions, gotchas, patterns, and contracts for that unit, and **fold the relevant ones directly into the task file** (its Context / Interfaces / Edge cases) — don't just link them. List each memory file consulted in the task's `memory_refs`. The point is that the executor receives the accumulated wisdom without needing to open the memory itself.
+6. **Assign waves** based on the dependency graph.
+7. **Create the board structure** and write one file per task using the template. Pin down every implementation fork *here*, so the executor decides as little as possible (see Task-splitting guidelines).
+8. **Write `BOARD.md`** with the wave-based execution plan, and report a summary to the user: number of tasks, number of waves, maximum parallelism per wave, and any ambiguous requirements.
 
 Do not start implementing any task. This skill produces the board only.
 
@@ -60,11 +61,13 @@ status: backlog
 wave: 2
 depends_on: [101, 102]   # ids from earlier waves only, or []
 priority: high            # high | medium | low
-estimate: S               # S (≤1h) | M (≤2h)
+estimate: S               # XS (trivial) | S (≤1h) | M (≤2h) — drives how much detail below
 files:                    # files this task OWNS (creates or modifies)
   - src/pages/Reports.tsx
   - src/pages/Reports.test.tsx
 prd_refs: [FR-1, FR-2]
+memory_refs:              # knowledge/ module-memory files folded in (or [])
+  - knowledge/reports/reports-page.md
 agent_ready: true         # false if the task still has open questions
 ---
 
@@ -73,7 +76,9 @@ agent_ready: true         # false if the task still has open questions
 ## Context (self-contained)
 Everything an agent needs to know, restated here even if it repeats the PRD:
 what the feature is, why this task exists, and how it fits the whole. Assume
-the agent has NOT read the PRD or any other task.
+the agent has NOT read the PRD or any other task. Paste the CURRENT state of
+the code you're changing (real excerpts with `file:line`) so the agent starts
+from fact, not a guess.
 
 ## Interfaces you must conform to
 Contracts shared with other tasks, stated exactly:
@@ -82,10 +87,37 @@ Contracts shared with other tasks, stated exactly:
 - Gate the button behind `canExportReports(user)` from
   `src/lib/permissions.ts` (task 102).
 
-## What to do
-- Concrete, ordered steps. Reference real file paths. Stay strictly within
-  the files listed in `files` — if you find you need to edit another file,
-  STOP and report back instead of editing it.
+## Implementation plan
+Prescriptive, ordered steps that leave the executor as little to decide as
+possible. Name the exact functions/methods/components, their signatures, and
+WHERE each goes (file + section/line). **If there's a fork — getter vs method,
+inline vs helper, which util to call — PICK ONE here; never pass the choice to
+the executor.** Reference real file paths. Stay strictly within the files
+listed in `files`; if you find you must edit another file, STOP and report back.
+1. In `src/pages/Reports.tsx`, add `handleExport(): void` — calls
+   `serializeReportToCsv(report)`, then downloads via `downloadBlob()` from
+   `src/lib/download.ts`.
+2. Render `<Button onClick={handleExport} disabled={!canExportReports(user)}>`
+   in the header row, right after the title (around line 42).
+
+## Edge cases & error handling
+Table of boundary/failure inputs → the EXACT expected behavior. This is what
+removes guesswork. Include only the rows that apply.
+| Situation | Expected behavior |
+|-----------|-------------------|
+| Report has 0 rows | Button enabled; file downloads with the header row only |
+| `serializeReportToCsv` throws | Inline error toast "Export failed"; no download |
+| User lacks permission | Button rendered but disabled (not hidden) |
+
+## Data / contract details
+When the task touches data or an API: exact request/response shapes, validation
+rules, error codes, and DB column types & nullability. Omit this section if N/A.
+
+## Reference / prior art
+Point at the exact pattern to copy so the executor mirrors, not invents:
+- Follow the download pattern in `src/pages/Invoices.tsx:88`.
+- Module memory: `knowledge/reports/reports-page.md` — its gotchas are already
+  folded into the sections above; listed here for traceability.
 
 ## Acceptance criteria
 - [ ] Objectively verifiable outcomes, checkable with only earlier-wave
@@ -96,6 +128,13 @@ Contracts shared with other tasks, stated exactly:
 Anything an implementer might be tempted to do here but must not — especially
 work owned by a parallel task.
 ```
+
+**Detail is proportional to complexity.** For `estimate: XS`/`S`, keep only
+Context + Implementation plan + Acceptance criteria (+ Out of scope); add
+*Edge cases*, *Data / contract details*, and *Reference / prior art* only when
+the work warrants them. For `M`, all sections are expected, with a real
+edge-case table and pasted current-state code. Never pad a trivial task to
+look thorough — right-size it.
 
 ## BOARD.md template
 
@@ -143,6 +182,9 @@ _(empty)_
 
 ## Task-splitting guidelines
 
+- **Leave no implementation fork for the executor.** The whole point of this level of detail is that `implement-task` becomes near-mechanical: the agent implements, it does not design. Wherever more than one reasonable approach exists (a getter vs a method, inline vs a helper, which library call), decide it *in the task* and write the decision down. A task that says "your choice" has failed this skill.
+- **Detail proportional to complexity.** Match the task's depth to its `estimate` (see the note under the template). A trivial `XS` task stays lean; a complex `M` task pins every contract, edge case, and current-state excerpt. Precision, not padding.
+- **Bake in module memory, don't just cite it.** If `knowledge/` has a memory file for a unit a task touches, copy its relevant gotchas, decisions, patterns, and contracts *into* the task body (Context / Interfaces / Edge cases) so the executor needs zero extra lookups — then record the source in `memory_refs`.
 - **Split along file boundaries, then along features.** The file-ownership rule usually dictates the cut: serializer module, UI component, API route, migration, and e2e test naturally become separate tasks.
 - Shared plumbing that everything depends on (types, config, scaffolding, migrations) goes in wave 1 as one or a few small tasks, so later waves fan out wide.
 - Integration and end-to-end tests that span many files belong in the **final wave**, alone, after parallel work has merged.
