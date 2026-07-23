@@ -120,9 +120,15 @@ Point at the exact pattern to copy so the executor mirrors, not invents:
   folded into the sections above; listed here for traceability.
 
 ## Acceptance criteria
-- [ ] Objectively verifiable outcomes, checkable with only earlier-wave
-      tasks completed. Each item must be testable (run a command, click a
-      thing, assert an output).
+Objectively verifiable outcomes, checkable with only earlier-wave tasks
+completed. **Write them so most are settleable by inspection** — the
+executor does not build (the board is built once, at the end). Prefer
+"`serializeReportToCsv` is exported from `src/lib/csv.ts` with signature
+`(report: Report) => string`" over "the build passes". Tag the ones that
+genuinely need execution so the final gate collects them:
+- [ ] Static, checkable by reading the code against the contract above.
+- [ ] Every row of the edge-case table is handled in `handleExport`.
+- [ ] `npm test src/lib/csv.test.ts` passes *(pending: build-gate)*
 
 ## Out of scope
 Anything an implementer might be tempted to do here but must not — especially
@@ -148,7 +154,10 @@ Source PRD: [../prd-feature-name.md](../prd-feature-name.md)
   or git worktree per task): they share no files.
 - Start a wave only when every task in the previous wave is in `done/`.
 - To work a task: move its file to `in-progress/`, set `status`, implement,
-  verify acceptance criteria, move to `done/`.
+  verify acceptance criteria **statically**, move to `done/`.
+- **No agent builds.** The project is built/tested/linted exactly once, after
+  the last wave closes; results land in `BUILD.md`. Criteria tagged
+  `(pending: build-gate)` are settled there, not per task.
 - Each task is self-contained: give an agent just the task file.
 
 ## Execution plan
@@ -189,6 +198,7 @@ _(empty)_
 - Shared plumbing that everything depends on (types, config, scaffolding, migrations) goes in wave 1 as one or a few small tasks, so later waves fan out wide.
 - Integration and end-to-end tests that span many files belong in the **final wave**, alone, after parallel work has merged.
 - Acceptance criteria come from the PRD's requirements, restated as checkable outcomes — not vague ("works well") but concrete ("clicking Export downloads a `.csv` with one row per report entry").
+- **Write criteria for a non-building executor.** `implement-task` builds the project once, after the last wave — a task agent never runs a build, typecheck, or suite. So phrase each criterion as something readable in the code where possible, and mark the rest `*(pending: build-gate)*`. A task whose criteria are all "the build passes" gives its agent nothing to verify and dumps every defect onto the final gate.
 - Include non-code tasks when the PRD implies them (docs, feature-flag cleanup), but do not invent work the PRD never asked for.
 - If a PRD item is too vague to become a runnable task, still create the task, set `agent_ready: false`, list the open questions inside it, and flag it in your final summary — agents should skip non-ready tasks.
 

@@ -32,7 +32,7 @@ Examples that qualify: move the "New Task" button to the header's right and use 
 1. **Check eligibility** against the list above. If any item fails, say so plainly and hand off to the full pipeline — don't proceed here.
 2. **Consult module memory.** For the file(s) you'll touch, search `knowledge/INDEX.md` (the `close-cycle` memory). Load any matching entry and respect its decisions, gotchas, patterns, and contracts. *Small does not mean blind* — a one-line edit can trip a recorded footgun.
 3. **Make the change**, strictly within the identified file(s). If you discover you must touch another file, change a contract, or make a design call → **STOP and escalate**; the eligibility gate was wrong.
-4. **Verify for real.** Run the build/test the change implies, or check the visual result (screenshot / preview). Never report done on a change you didn't actually exercise.
+4. **Verify for real — one build, and only one.** Run the build/test the change implies, or check the visual result (screenshot / preview). Never report done on a change you didn't actually exercise. This single run *is* this path's build gate (the equivalent of what `implement-task` does once after the last wave) — make the change complete first, then build; don't build iteratively as you poke at it.
 5. **Commit** with a scoped message, e.g. `quick: move New Task button to header right, accent color`.
 6. **Record a durable lesson, only if there is one.** If the change revealed a gotcha or settled a decision worth keeping, add a one-line entry to that unit's `knowledge/` memory (or run `close-cycle`). If it taught nothing durable, skip this — don't manufacture memory.
 7. **Report:** what changed, how you verified it, and whether anything was recorded.
